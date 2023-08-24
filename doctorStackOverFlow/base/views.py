@@ -50,7 +50,9 @@ def createRoom(request):
     if request.method == "POST":
         form = RoomForm(request.POST)
         if form.is_valid:
-            form.save()
+            room = form.save(commit=False)
+            room.host = request.user
+            room.save()
             return redirect('home')
 
     context = {'form': form}
@@ -128,6 +130,16 @@ def registerUser(request):
         else:
             messages.error(request, 'Invalid sign up')
     return render(request, 'base/login_register.html', {'form': form})
+
+
+def userProfile(request, pk):
+    user = User.objects.get(id=pk)
+    rooms = user.room_set.all()
+    conversations = user.message_set.all()
+    topics = Topic.objects.all()
+    context = {'user': user, 'conversations': conversations,
+               "rooms": rooms, 'topics': topics}
+    return render(request, 'base/profile.html', context)
 
 
 def logoutUser(request):
