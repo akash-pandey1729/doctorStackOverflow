@@ -9,7 +9,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 
 
-@login_required(login_url='login')
 def home(request):
     q = request.GET.get('q') if request.GET.get('q') != None else ''
     rooms = Room.objects.filter(Q(topic__name__icontains=q) |
@@ -47,15 +46,22 @@ def room(request, pk):
 @login_required(login_url='login')
 def createRoom(request):
     form = RoomForm()
-    if request.method == "POST":
-        form = RoomForm(request.POST)
-        if form.is_valid:
-            room = form.save(commit=False)
-            room.host = request.user
-            room.save()
-            return redirect('home')
+    topics = Topic.objects.all()
 
-    context = {'form': form}
+    if request.method == "POST":
+        topic_name = request.POST.get('topic')
+        topic, created = Topic.objects.get_or_create(name=topic_name)
+        print(">>>>here ", topic, request.POST.get('name'))
+        form = RoomForm(request.POST)
+        Room.objects.create(
+            host=request.user,
+            topic=topic,
+            name=request.POST.get('name'),
+            description=request.POST.get('description'),
+        )
+        return redirect('home')
+
+    context = {'room': room, 'topics': topics, 'form': form}
     return render(request, 'base/room_form.html', context)
 
 
@@ -63,14 +69,18 @@ def createRoom(request):
 def updateRoom(request, pk):
     room = Room.objects.get(id=pk)
     form = RoomForm(instance=room)
+    topics = Topic.objects.all()
     if request.user != room.host:
         return HttpResponse('You do not have the permissions')
     if request.method == "POST":
-        form = RoomForm(request.POST, instance=room)
-        if form.is_valid:
-            form.save()
-            return redirect('home')
-    context = {'form': form}
+        topic_name = request.POST.get('topic')
+        topic, created = Topic.objects.get_or_create(name=topic_name)
+        room.topic = topic
+        room.name = request.POST.get('name')
+        room.description = request.POST.get('description')
+        room.save()
+        return redirect('home')
+    context = {'room': room, 'topics': topics, 'form': form}
     return render(request, 'base/room_form.html', context)
 
 
@@ -144,4 +154,4 @@ def userProfile(request, pk):
 
 def logoutUser(request):
     logout(request)
-    return redirect('login')
+    return redirect('home')
